@@ -1,0 +1,17 @@
+[package]
+name = "zap_to_12"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+openssh = { version = "0.11", features = ["native-mux"] }
+tokio = { version = "1.36.0", features = [
+    "process",
+    "io-util",
+    "macros",
+    "net",
+    "rt-multi-thread",
+] }
+futures = "0.3"
+tokio-test = "0.4.2"
+anyhow = "1"
