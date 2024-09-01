@@ -9,12 +9,17 @@ use zap_2_12::server::Server;
 
 #[tokio::main]
 async fn main() {
-    let server = "ssh://seungjin@free.gcp.seungjin.net:432";
+    let server = "ssh://root@2.zap.seungjin.net:22";
     let s = Server::check(0, server).await;
-    //upgrade(s).await;
-    //Apt::source_list(s).await;
-    let a = Server::run_cmd(s, "sudo systemctl status sshd").await;
+    let a = Apt::update(s.clone()).await;
     println!("{:?}", a);
+    if a.is_err() {
+        panic!("STOP! HERE");
+    }
+    //let b = Apt::upgrade(s.clone()).await;
+    //println!("{:?}", b);
+    //let c = Server::reboot(s.clone(), server).await;
+    //println!("{:?}", c);
 }
 
 #[async_recursion]

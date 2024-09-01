@@ -6,6 +6,8 @@ use openssh::SessionBuilder;
 use std::sync::Arc;
 use std::thread;
 
+use crate::command::base::Base;
+
 pub struct Server;
 
 pub enum DistroVer {
@@ -16,7 +18,10 @@ pub enum DistroVer {
 type Connection = Arc<Session>;
 
 impl Server {
-    pub fn check(try_count: u64, server: &'static str) -> BoxFuture<'static, Arc<Session>> {
+    pub fn check(
+        try_count: u64,
+        server: &'static str,
+    ) -> BoxFuture<'static, Arc<Session>> {
         if try_count > 8 {
             panic!("Connection is not avaiable");
         }
@@ -35,6 +40,26 @@ impl Server {
             }
         }
         .boxed()
+    }
+
+    pub async fn reboot(
+        s: Arc<Session>,
+        server: &'static str,
+    ) -> Result<Arc<Session>> {
+        println!("REBOOTING");
+        s.clone()
+            .arc_raw_command("sudo")
+            .arg("systemctl")
+            .arg("reboot")
+            .output()
+            .await
+            .unwrap();
+        Server::wait_until_down(s).await;
+        println!("Server is rebooted.");
+        let s1 = Server::check(0, server).await;
+        let uptime = Base::uptime(s1.clone()).await;
+        println!("Server is back.\nUptime: {}", uptime.unwrap());
+        Ok(s1)
     }
 
     pub async fn alive(s: Arc<Session>) -> bool {
@@ -78,7 +103,8 @@ impl Server {
             .into_iter()
         {
             if line.starts_with("VERSION_ID=") {
-                let mut version_str = line.split("=").collect::<Vec<&str>>()[1].chars();
+                let mut version_str =
+                    line.split("=").collect::<Vec<&str>>()[1].chars();
                 version_str.next();
                 version_str.next_back();
                 ver = version_str.as_str().parse::<u8>().unwrap();
@@ -110,15 +136,15 @@ impl Server {
 
     pub async fn read_file(s: Arc<Session>, path: &str) -> Result<String> {
         let content = s.arc_raw_command("cat").arg(path).output().await;
-        let a = match content {
+        match content {
             Err(e) => {
                 return Err(anyhow::Error::from(e));
             }
-            Ok(c) => String::from_utf8(c.stdout),
-        };
-        Ok(a.unwrap())
+            Ok(c) => Ok(String::from_utf8(c.stdout).unwrap()),
+        }
     }
 
+    /// todo:
     pub async fn write_file(s: Arc<Session>, path: &str, content: &str) {
 
         //cat > readme.txt << EOF
