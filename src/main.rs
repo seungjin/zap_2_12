@@ -10,8 +10,10 @@ use zap_2_12::server::Server;
 #[tokio::main]
 async fn main() {
     let server = "ssh://root@2.zap.seungjin.net:22";
-    let mut s = Server::check(0, server).await;
-    Apt::update(s.clone(), false).await;
+    let s = Server::check(0, server).await;
+
+    let u = Apt::update(s.clone(), false).await;
+    println!("{:?}", u);
 
     // apt-get install -y debian-archive-keyring && apt-get clean
 
@@ -22,11 +24,12 @@ async fn main() {
     Apt::upgrade(s.clone(), false).await;
     Apt::full_upgrade(s.clone());
     Apt::autoremove(s.clone()).await;
-    s = Server::reboot(s.clone(), server).await.unwrap();
+    let s = Server::reboot(s.clone(), server).await.unwrap();
     upgrade_2_11(s.clone()).await;
     Apt::update(s.clone(), false).await;
     Apt::upgrade(s.clone(), false).await;
     Apt::full_upgrade(s.clone());
+    Apt::autoremove(s.clone()).await;
     Server::reboot(s.clone(), server).await;
 }
 

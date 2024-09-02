@@ -1,6 +1,7 @@
 use anyhow::Result;
 use core::time::Duration;
 use futures::future::{BoxFuture, FutureExt};
+use openssh::KnownHosts;
 use openssh::Session;
 use openssh::SessionBuilder;
 use std::ops::Deref;
@@ -26,6 +27,7 @@ impl Server {
         async move {
             let mut sess = SessionBuilder::default();
             sess.connect_timeout(Duration::from_secs(8));
+            sess.known_hosts_check(KnownHosts::Accept);
 
             //match sess.connect_mux(server).await {
             match sess.connect_mux(server).await {

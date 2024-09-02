@@ -13,13 +13,17 @@ impl Apt {
 
     pub async fn update(c: Connection, secure: bool) -> Result<String> {
         println!("APT UPDATE");
-        // apt-get update --allow-insecure-repositories
+        // apt-get --yes --allow-insecure-repositories --allow-releaseinfo-change update
+
         let mut cmd = c.arc_command("apt");
+        //cmd.arg("DEBIAN_FRONTEND=noninteractive");
+        //cmd.arg("apt");
         cmd.arg("--yes");
-        cmd.arg("update");
         if secure != true {
             cmd.arg("--allow-insecure-repositories");
         }
+        cmd.arg("--allow-releaseinfo-change");
+        cmd.arg("update");
         let cmd_ran = cmd.output().await;
 
         match cmd_ran {
@@ -36,16 +40,17 @@ impl Apt {
 
     pub async fn upgrade(c: Connection, secure: bool) -> Result<String> {
         println!("APT UPGRADE");
-        //apt-get --yes --force-yes -o Dpkg::Options::="--force-confold" upgrade
-        let mut cmd = c.arc_raw_command("apt");
+        // DEBIAN_FRONTEND=noninteractive apt --yes --allow-unauthenticated upgrade
+
+        let mut cmd = c.arc_raw_command("DEBIAN_FRONTEND=noninteractive");
+        cmd.arg("apt");
         cmd.arg("--yes");
-        cmd.arg("--force-yes");
-        cmd.arg("-o");
-        cmd.arg("Dpkg::Options::=\"--force-confold\"");
-        cmd.arg("upgrade");
+        //cmd.arg("-o");
+        //cmd.arg("Dpkg::Options::=\"--force-confold\"");
         if secure != true {
             cmd.arg("--allow-unauthenticated");
         }
+        cmd.arg("upgrade");
         let cmd_run = cmd.output().await;
 
         match cmd_run {
@@ -61,6 +66,7 @@ impl Apt {
     pub async fn autoremove(c: Connection) -> Result<String> {
         let cmd = c
             .arc_raw_command("apt")
+            .arg("--yes")
             .arg("--purge")
             .arg("autoremove")
             .output()
@@ -75,7 +81,14 @@ impl Apt {
     }
 
     pub async fn full_upgrade(c: Connection) -> Result<String> {
-        let cmd = c.arc_raw_command("apt").arg("full-upgrade").output().await;
+        println!("full-upgrade");
+        let cmd = c
+            .arc_raw_command("DEBIAN_FRONTEND=noninteractive")
+            .arg("apt")
+            .arg("--yes")
+            .arg("full-upgrade")
+            .output()
+            .await;
 
         match cmd {
             Err(e) => {
