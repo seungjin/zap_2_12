@@ -3,6 +3,7 @@ use core::time::Duration;
 use futures::future::{BoxFuture, FutureExt};
 use openssh::Session;
 use openssh::SessionBuilder;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::thread;
 
@@ -18,10 +19,7 @@ pub enum DistroVer {
 type Connection = Arc<Session>;
 
 impl Server {
-    pub fn check(
-        try_count: u64,
-        server: &'static str,
-    ) -> BoxFuture<'static, Arc<Session>> {
+    pub fn check(try_count: u64, server: &'static str) -> BoxFuture<'static, Arc<Session>> {
         if try_count > 8 {
             panic!("Connection is not avaiable");
         }
@@ -30,7 +28,7 @@ impl Server {
             sess.connect_timeout(Duration::from_secs(8));
 
             //match sess.connect_mux(server).await {
-            match sess.connect(server).await {
+            match sess.connect_mux(server).await {
                 Ok(s) => Arc::new(s),
                 Err(_) => {
                     println!("Waiting for server is ready ({})", try_count);
@@ -42,24 +40,29 @@ impl Server {
         .boxed()
     }
 
-    pub async fn reboot(
-        s: Arc<Session>,
-        server: &'static str,
-    ) -> Result<Arc<Session>> {
+    pub async fn reboot(s: Arc<Session>, server: &'static str) -> Result<Arc<Session>> {
         println!("REBOOTING");
-        s.clone()
-            .arc_raw_command("sudo")
-            .arg("systemctl")
+        let cmd = s
+            .clone()
+            .arc_raw_command("systemctl")
             .arg("reboot")
             .output()
-            .await
-            .unwrap();
+            .await;
+
+        match cmd {
+            Err(e) => {
+                eprintln!("{:?}", e);
+                return Err(anyhow::Error::from(e));
+            }
+            Ok(_c) => (),
+        }
+
         Server::wait_until_down(s).await;
         println!("Server is rebooted.");
-        let s1 = Server::check(0, server).await;
-        let uptime = Base::uptime(s1.clone()).await;
+        let new_session = Server::check(0, server).await;
+        let uptime = Base::uptime(new_session.clone()).await;
         println!("Server is back.\nUptime: {}", uptime.unwrap());
-        Ok(s1)
+        Ok(new_session)
     }
 
     pub async fn alive(s: Arc<Session>) -> bool {
@@ -103,8 +106,7 @@ impl Server {
             .into_iter()
         {
             if line.starts_with("VERSION_ID=") {
-                let mut version_str =
-                    line.split("=").collect::<Vec<&str>>()[1].chars();
+                let mut version_str = line.split("=").collect::<Vec<&str>>()[1].chars();
                 version_str.next();
                 version_str.next_back();
                 ver = version_str.as_str().parse::<u8>().unwrap();

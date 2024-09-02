@@ -9,29 +9,49 @@ pub struct Apt;
 type Connection = Arc<Session>;
 
 impl Apt {
-    pub async fn update(c: Connection) -> Result<String> {
-        println!("APT UPDATE");
-        let cmd = c
-            .arc_command("apt")
-            .arg("--yes")
-            .arg("update")
-            .output()
-            .await;
+    // export DEBIAN_FRONTEND=noninteractive
 
-        match cmd {
+    pub async fn update(c: Connection, secure: bool) -> Result<String> {
+        println!("APT UPDATE");
+        // apt-get update --allow-insecure-repositories
+        let mut cmd = c.arc_command("apt");
+        cmd.arg("--yes");
+        cmd.arg("update");
+        if secure != true {
+            cmd.arg("--allow-insecure-repositories");
+        }
+        let cmd_ran = cmd.output().await;
+
+        match cmd_ran {
             Err(e) => {
                 return Err(anyhow::Error::from(e));
             }
-            Ok(c) => Ok(String::from_utf8(c.stdout).unwrap()),
+            Ok(c) => {
+                let so = String::from_utf8(c.stdout).unwrap();
+                println!("{}", so);
+                Ok(so)
+            }
         }
     }
 
-    pub async fn upgrade(c: Connection) -> Result<String> {
+    pub async fn upgrade(c: Connection, secure: bool) -> Result<String> {
         println!("APT UPGRADE");
-        let cmd = c.arc_raw_command("apt").arg("upgrade").output().await;
+        //apt-get --yes --force-yes -o Dpkg::Options::="--force-confold" upgrade
+        let mut cmd = c.arc_raw_command("apt");
+        cmd.arg("--yes");
+        cmd.arg("--force-yes");
+        cmd.arg("-o");
+        cmd.arg("Dpkg::Options::=\"--force-confold\"");
+        cmd.arg("upgrade");
+        if secure != true {
+            cmd.arg("--allow-unauthenticated");
+        }
+        let cmd_run = cmd.output().await;
 
-        match cmd {
+        match cmd_run {
             Err(e) => {
+                eprintln!("apt --yes upgrade error");
+                eprintln!("{:?}", e);
                 return Err(anyhow::Error::from(e));
             }
             Ok(c) => Ok(String::from_utf8(c.stdout).unwrap()),
@@ -40,8 +60,8 @@ impl Apt {
 
     pub async fn autoremove(c: Connection) -> Result<String> {
         let cmd = c
-            .arc_raw_command("sudo")
-            .arg("apt")
+            .arc_raw_command("apt")
+            .arg("--purge")
             .arg("autoremove")
             .output()
             .await;
@@ -55,15 +75,11 @@ impl Apt {
     }
 
     pub async fn full_upgrade(c: Connection) -> Result<String> {
-        let cmd = c
-            .arc_raw_command("sudo")
-            .arg("apt")
-            .arg("full-upgrade")
-            .output()
-            .await;
+        let cmd = c.arc_raw_command("apt").arg("full-upgrade").output().await;
 
         match cmd {
             Err(e) => {
+                eprintln!("apt pull-upgrade error");
                 return Err(anyhow::Error::from(e));
             }
             Ok(c) => Ok(String::from_utf8(c.stdout).unwrap()),
@@ -92,10 +108,7 @@ impl Apt {
         }
     }
 
-    pub async fn install(
-        c: Connection,
-        packages: Vec<&str>,
-    ) -> Result<String> {
+    pub async fn install(c: Connection, packages: Vec<&str>) -> Result<String> {
         println!("APT INSTALL");
         let mut stdout = String::new();
         for package in packages.into_iter() {
@@ -112,8 +125,7 @@ impl Apt {
                 Err(e) => {
                     return Err(anyhow::Error::from(e));
                 }
-                Ok(c) => stdout
-                    .push_str(str::from_utf8(c.stdout.as_slice()).unwrap()),
+                Ok(c) => stdout.push_str(str::from_utf8(c.stdout.as_slice()).unwrap()),
             }
         }
 
