@@ -11,18 +11,16 @@ type Connection = Arc<Session>;
 impl Apt {
     // export DEBIAN_FRONTEND=noninteractive
 
-    pub async fn update(c: Connection, secure: bool) -> Result<String> {
+    pub async fn update(c: Connection, release_info_change: bool) -> Result<String> {
         println!("APT UPDATE");
-        // apt-get --yes --allow-insecure-repositories --allow-releaseinfo-change update
+        // apt-get --yes --allow-releaseinfo-change update
 
         let mut cmd = c.arc_command("apt");
-        //cmd.arg("DEBIAN_FRONTEND=noninteractive");
-        //cmd.arg("apt");
+
         cmd.arg("--yes");
-        if secure != true {
-            cmd.arg("--allow-insecure-repositories");
+        if release_info_change {
+            cmd.arg("--allow-releaseinfo-change");
         }
-        cmd.arg("--allow-releaseinfo-change");
         cmd.arg("update");
         let cmd_ran = cmd.output().await;
 
@@ -47,9 +45,6 @@ impl Apt {
         cmd.arg("--yes");
         //cmd.arg("-o");
         //cmd.arg("Dpkg::Options::=\"--force-confold\"");
-        if secure != true {
-            cmd.arg("--allow-unauthenticated");
-        }
         cmd.arg("upgrade");
         let cmd_run = cmd.output().await;
 
@@ -59,7 +54,11 @@ impl Apt {
                 eprintln!("{:?}", e);
                 return Err(anyhow::Error::from(e));
             }
-            Ok(c) => Ok(String::from_utf8(c.stdout).unwrap()),
+            Ok(c) => {
+                let out = String::from_utf8(c.stdout).unwrap();
+                println!("{}", out);
+                Ok(out)
+            }
         }
     }
 
