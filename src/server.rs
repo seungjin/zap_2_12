@@ -8,7 +8,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::thread;
 
-use crate::command::base::Base;
+use crate::command::uptime::Uptime;
 
 pub struct Server;
 
@@ -62,7 +62,7 @@ impl Server {
         Server::wait_until_down(s).await;
         println!("Server is rebooted.");
         let new_session = Server::check(0, server).await;
-        let uptime = Base::uptime(new_session.clone()).await;
+        let uptime = Uptime::exec(new_session.clone()).await;
         println!("Server is back.\nUptime: {}", uptime.unwrap());
         Ok(new_session)
     }

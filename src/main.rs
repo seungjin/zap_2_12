@@ -8,7 +8,7 @@ use zap_2_12::server::Server;
 
 #[tokio::main]
 async fn main() {
-    let server = "ssh://root@2.zap.seungjin.net:22";
+    let server = "ssh://root@1.zap.seungjin.net:22";
     let s = Server::check(0, server).await;
 
     Apt::update(s.clone(), true)
